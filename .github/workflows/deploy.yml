@@ -1,0 +1,37 @@
+name: Deploy to Lambda
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    name: Deploy to Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Setup cache for packaging
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: packages
+          key: ${{ runner.os }}-package-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies for packaging
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: make packages
+
+      - name: Package ZIP
+        run: make package
+
+      - name: Deploy to AWS Lambda
+        run: make deploy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_FUNCTION_NAME: ${{ secrets.AWS_FUNCTION_NAME }}
+          AWS_DEFAULT_REGION: us-east-1
